@@ -2,6 +2,7 @@ import sys
 import argparse
 import cv2
 import editdistance
+import os.path
 from DataLoader import DataLoader, Batch
 from Model import Model, DecoderType
 from SamplePreprocessor import preprocess
@@ -13,6 +14,8 @@ class FilePaths:
 	fnAccuracy = '../model/accuracy.txt'
 	fnTrain = '../data/'
 	fnInfer = '../data/test.png'
+	fnInPath = '../../02_deslanted/'
+	fnOutPath = '../../03_out/'
 	fnCorpus = '../data/corpus.txt'
 
 
@@ -91,6 +94,13 @@ def infer(model, fnImg):
 	batch = Batch(None, [img] * Model.batchSize) # fill all batch elements with same input image
 	recognized = model.inferBatch(batch) # recognize text
 	print('Recognized:', '"' + recognized[0] + '"') # all batch elements hold same result
+	if os.path.isfile(FilePaths.fnOutPath):
+		txt_file = open(FilePaths.fnOutPath, 'a')
+	else:
+		txt_file = open(FilePaths.fnOutPath, 'x')
+	
+	txt_file.write(recognized[0] + "\n")
+	txt_file.close()
 
 
 def main():
@@ -101,6 +111,8 @@ def main():
 	parser.add_argument("--validate", help="validate the NN", action="store_true")
 	parser.add_argument("--beamsearch", help="use beam search instead of best path decoding", action="store_true")
 	parser.add_argument("--wordbeamsearch", help="use word beam search instead of best path decoding", action="store_true")
+	parser.add_argument('-fi', help="Path (from ../../02_deslanted/ on) and filename (without extension) to decode.")
+	parser.add_argument('-fo', help="Text filename and path (from ../../03_out/ on) to write the recognized words to.")
 	args = parser.parse_args()
 
 	decoderType = DecoderType.BestPath
@@ -108,6 +120,15 @@ def main():
 		decoderType = DecoderType.BeamSearch
 	elif args.wordbeamsearch:
 		decoderType = DecoderType.WordBeamSearch
+		
+	if args.fi:
+		inFileName = args.fi + ".png"
+		FilePaths.fnInPath = FilePaths.fnInPath + inFileName
+		print(FilePaths.fnInPath)
+	if args.fo:
+		outFileName = args.fo + ".png.txt"
+		FilePaths.fnOutPath = FilePaths.fnOutPath + outFileName
+		print(FilePaths.fnOutPath)
 
 	# train or validate on IAM dataset	
 	if args.train or args.validate:
@@ -132,7 +153,7 @@ def main():
 	else:
 		print(open(FilePaths.fnAccuracy).read())
 		model = Model(open(FilePaths.fnCharList).read(), decoderType, mustRestore=True)
-		infer(model, FilePaths.fnInfer)
+		infer(model, FilePaths.fnInPath)
 
 
 if __name__ == '__main__':
